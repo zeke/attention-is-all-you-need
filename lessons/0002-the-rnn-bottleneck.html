@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 2 — The RNN Bottleneck</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<article class="lesson">
+
+  <header class="lesson-header">
+    <p class="lesson-meta">Lesson 2 of 8 &nbsp;·&nbsp; Attention Is All You Need</p>
+    <h1>The RNN Bottleneck</h1>
+    <p class="subtitle">How recurrent networks tried to handle sequences of any length — and where they broke</p>
+  </header>
+
+
+  <!-- ============================================================
+       1. The problem left over from Lesson 1
+       ============================================================ -->
+
+  <h2>Where we left off</h2>
+
+  <p>
+    Lesson 1 ended with an unsolved problem: neural language models
+    with word embeddings could generalize across meaning, but they still
+    read a <strong>fixed-size window</strong> of previous words — typically
+    five or ten. That's fine for predicting the next word in a sentence.
+    It completely breaks down for anything longer.
+  </p>
+
+  <p>
+    Consider machine translation. To translate a paragraph, you need to
+    hold the whole source sentence in your head before producing the
+    first target word. A fixed window can't do that. You need something
+    that can read a sequence of <em>arbitrary length</em> and remember
+    what it read.
+  </p>
+
+  <p>
+    That's what the <strong>recurrent neural network</strong> (RNN) was
+    designed to do.
+  </p>
+
+
+  <!-- ============================================================
+       2. What "recurrent" means
+       ============================================================ -->
+
+  <h2>What "recurrent" means: a loop through time</h2>
+
+  <p>
+    An RNN processes a sequence one token at a time, left to right.
+    At each step, it does two things:
+  </p>
+
+  <ol>
+    <li>Reads the current token's embedding.</li>
+    <li>Reads a <strong>hidden state</strong> — a fixed-size vector
+        carried forward from the previous step.</li>
+  </ol>
+
+  <p>
+    It combines those two inputs, produces a new hidden state, and
+    passes it to the next step. Like this:
+  </p>
+
+  <div class="diagram">      "the"       "cat"       "sat"       "on"        "the"
+        │           │           │           │           │
+        ▼           ▼           ▼           ▼           ▼
+[h₀] → [RNN] → [h₁] → [RNN] → [h₂] → [RNN] → [h₃] → [RNN] → [h₄] → [RNN] → [h₅]
+                                                                                  │
+                                                                              predict
+                                                                              next word</div>
+
+  <p>
+    Each hidden state <code>hₙ</code> is supposed to be a compressed
+    summary of everything the model has read up to that point.
+    After reading "the cat sat on the", the hidden state <code>h₅</code>
+    should encode — somehow — the full context needed to predict what comes next.
+  </p>
+
+  <p>
+    This is genuinely elegant. The same RNN cell, reused at every step,
+    can handle sequences of any length: 5 words, 50 words, 500 words.
+    You just loop it more times.
+  </p>
+
+
+  <!-- ============================================================
+       3. Seq2seq: the encoder-decoder idea
+       ============================================================ -->
+
+  <h2>Sequence-to-sequence: the encoder-decoder idea</h2>
+
+  <p>
+    In 2014, two teams independently published what became known as the
+    <strong>sequence-to-sequence</strong> (seq2seq) architecture. The idea:
+    use <em>two</em> RNNs — one to read, one to write.
+  </p>
+
+  <div class="diagram">   ENCODER                                DECODER
+   ───────                                ───────
+
+   "the"  "cat"  "sat"                    "le"   "chat"   "était"  "assis"
+     │      │      │                        │       │         │        │
+     ▼      ▼      ▼                        ▼       ▼         ▼        ▼
+   [RNN] → [RNN] → [RNN] ──► context ──► [RNN] → [RNN] → [RNN] → [RNN]
+                              vector
+                           (fixed size!)</div>
+
+  <p>
+    The encoder reads the full source sentence, token by token, and
+    compresses it into a single fixed-size vector — the <strong>context
+    vector</strong>. Then the decoder takes that one vector and generates
+    the target sentence, one token at a time.
+  </p>
+
+  <p>
+    This worked. It was state of the art for machine translation in 2014–2015.
+    But it had a problem baked into its design.
+  </p>
+
+
+  <!-- ============================================================
+       4. The bottleneck
+       ============================================================ -->
+
+  <h2>The bottleneck: compressing everything into one vector</h2>
+
+  <p>
+    The context vector is a fixed-size vector — say, 512 numbers.
+    That's it. Everything the encoder learned about the source sentence
+    must be compressed into those 512 numbers before the decoder sees
+    a single token.
+  </p>
+
+  <p>
+    For short sentences, this is fine. For long ones, it's a disaster.
+    Consider translating a paragraph. The encoder has to compress:
+    the subject, the verb, the object, every adjective, the overall
+    rhetorical structure, any pronouns and their antecedents — all of
+    it — into 512 numbers. Then the decoder has to reconstruct the
+    target language entirely from that single bottleneck.
+  </p>
+
+  <div class="callout">
+    <p>
+      Analogy: imagine you had to read a whole legal contract, then
+      close the document, and write a translation from memory —
+      but your memory is limited to exactly one index card.
+      Short texts: fine. Long texts: you'll lose details.
+    </p>
+  </div>
+
+  <p>
+    This showed up empirically: seq2seq translation quality degraded
+    noticeably as source sentences got longer.
+  </p>
+
+
+  <!-- ============================================================
+       5. The vanishing gradient
+       ============================================================ -->
+
+  <h2>The other problem: vanishing gradients</h2>
+
+  <p>
+    There's a second, related problem inside the RNN itself.
+  </p>
+
+  <p>
+    Training a neural network means adjusting its weights based on errors.
+    The adjustment signal — the <strong>gradient</strong> — flows backward
+    through the network from the output to every earlier weight.
+    In an RNN, that signal has to travel back through every single time step.
+  </p>
+
+  <p>
+    Each step slightly weakens or amplifies the signal (by multiplying by
+    numbers that are usually less than 1). Across 50 or 100 steps, the
+    signal shrinks to near-zero before it reaches the early tokens.
+    The model effectively stops learning long-range dependencies
+    because the training signal can't reach far enough back.
+  </p>
+
+  <div class="diagram">  "The contract signed in 1987, which covered all parties, was ___"
+
+  step 1    step 2     ...     step 8       step 9    step 10
+  "The"   "contract"          "was"       "finally"  "void"
+    │          │                │              │         │
+    │          │                │              │         │
+  gradient  gradient          gradient       ← ← ← ← gradient
+  (tiny)    (tiny)            (small)         (starts here)
+
+  By the time the gradient reaches "contract", it's nearly zero.
+  The model can't learn that "was" relates to "contract".</div>
+
+  <p>
+    LSTMs (Long Short-Term Memory networks, 1997) and GRUs (Gated
+    Recurrent Units, 2014) were architectural improvements that helped
+    gradients flow further back. They used learned "gates" to decide
+    what to keep and what to forget in the hidden state. They helped —
+    but the fundamental problem remained for very long sequences.
+  </p>
+
+
+  <!-- ============================================================
+       6. The third problem: you can't parallelize
+       ============================================================ -->
+
+  <h2>The third problem: RNNs are inherently sequential</h2>
+
+  <p>
+    RNNs have a structural constraint that matters enormously in practice:
+    <strong>step <em>n</em> can't run until step <em>n−1</em> is complete</strong>,
+    because step <em>n</em> needs the hidden state produced by step <em>n−1</em>.
+  </p>
+
+  <p>
+    Modern hardware — GPUs, TPUs — is built for parallelism. You want to
+    process thousands of operations simultaneously. But an RNN on a
+    100-word sentence requires exactly 100 sequential steps, one after
+    another. You can't split that work across GPU cores.
+  </p>
+
+  <p>
+    This meant RNNs were slow to train and slow to scale. As researchers
+    wanted to use larger datasets and longer sequences, the sequential
+    constraint became a real wall.
+  </p>
+
+
+  <!-- ============================================================
+       7. The setup for attention
+       ============================================================ -->
+
+  <h2>The setup: what we actually need</h2>
+
+  <p>
+    By 2015, the problems were clear. What would an ideal architecture do?
+  </p>
+
+  <ul>
+    <li><strong>No fixed context window.</strong> Every output token should
+        be able to look at every input token directly — not through a
+        bottleneck.</li>
+    <li><strong>No sequential dependency.</strong> The architecture should
+        be parallelizable so it can run fast on modern hardware.</li>
+    <li><strong>No vanishing gradients.</strong> The training signal should
+        reach every part of the input, regardless of how far back it is.</li>
+  </ul>
+
+  <p>
+    Attention mechanisms were the first step toward all three.
+    That's Lesson 3.
+  </p>
+
+  <div class="callout note">
+    <p>
+      <strong>The arc so far:</strong> N-grams → fixed windows (can't generalize).
+      Word embeddings → meaning in vectors (can generalize, still fixed windows).
+      RNNs → arbitrary-length sequences (but bottleneck, vanishing gradients,
+      no parallelism). Next: attention as a direct fix to the bottleneck.
+    </p>
+  </div>
+
+
+  <!-- ============================================================
+       Quiz
+       ============================================================ -->
+
+  <div class="quiz" data-quiz>
+    <div class="quiz-header">Check your understanding</div>
+
+    <div class="quiz-item" data-correct="3"
+         data-feedback-correct="Correct. The hidden state is the RNN's running memory — a fixed-size vector updated at each step and passed forward."
+         data-feedback-incorrect="The embedding is the input representation for a single word. The hidden state is what carries context forward across steps.">
+      <p class="quiz-question">1. In an RNN, what carries information from one time step to the next?</p>
+      <ul class="quiz-options">
+        <li><button>The word embedding for the current token</button></li>
+        <li><button>The output probability distribution</button></li>
+        <li><button>The hidden state vector passed between steps</button></li>
+        <li><button>The training loss calculated at each step</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="2"
+         data-feedback-correct="Right. The encoder compresses the whole source sentence into one fixed-size context vector. That compression is the bottleneck."
+         data-feedback-incorrect="The bottleneck is the fixed-size context vector produced by the encoder — it must hold all information about the source before the decoder sees anything.">
+      <p class="quiz-question">2. What is the "bottleneck" in the seq2seq encoder-decoder architecture?</p>
+      <ul class="quiz-options">
+        <li><button>The slow speed of processing tokens one at a time</button></li>
+        <li><button>A fixed-size vector that must encode the whole source sentence</button></li>
+        <li><button>The maximum vocabulary size the model can handle</button></li>
+        <li><button>The limit on how many layers the decoder can have</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="1"
+         data-feedback-correct="Correct. Gradients shrink as they travel back through each step. Over many steps, the signal becomes too small to meaningfully update early weights."
+         data-feedback-incorrect="The vanishing gradient problem is about the training signal shrinking as it travels backward through many time steps — not about memory or output size.">
+      <p class="quiz-question">3. Why do RNNs struggle to learn dependencies between tokens that are far apart?</p>
+      <ul class="quiz-options">
+        <li><button>The training signal shrinks as it travels back through many steps</button></li>
+        <li><button>The hidden state runs out of memory after too many steps</button></li>
+        <li><button>The output vocabulary grows too large for distant tokens</button></li>
+        <li><button>Word embeddings can only represent local context</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="4"
+         data-feedback-correct="Exactly. Each step needs the result of the previous step, so you can't run steps in parallel. This is a hard structural constraint, not a software limitation."
+         data-feedback-incorrect="The parallelism problem is structural: step N requires the hidden state from step N-1, so steps must run in order. That defeats GPUs, which are built for parallel work.">
+      <p class="quiz-question">4. Why can't RNNs take full advantage of GPU parallelism?</p>
+      <ul class="quiz-options">
+        <li><button>GPUs can't store the large weight matrices RNNs need</button></li>
+        <li><button>RNNs use floating-point math that GPUs handle slowly</button></li>
+        <li><button>The hidden state is too large to fit in GPU memory</button></li>
+        <li><button>Each step depends on the previous step's output, forcing sequential execution</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-progress">
+      <span class="quiz-score-label">0 / 0 correct</span>
+      <div class="quiz-score-bar"><div class="quiz-score-fill"></div></div>
+      <span class="quiz-pct">–</span>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       Primary source
+       ============================================================ -->
+
+  <div class="citation">
+    <p class="label">Primary source for this lesson</p>
+    <p>
+      <a href="https://arxiv.org/abs/1409.3215" target="_blank">
+        "Sequence to Sequence Learning with Neural Networks" — Sutskever, Vinyals &amp; Le, 2014
+      </a><br>
+      The paper that established the encoder-decoder seq2seq framework.
+      Read the Abstract and Section 2 (The Model) to see the context-vector bottleneck
+      described in the authors' own words. The translation quality vs. sentence length
+      graph in the results section is the bottleneck problem made visible.
+    </p>
+  </div>
+
+
+  <!-- ============================================================
+       Ask your teacher
+       ============================================================ -->
+
+  <div class="ask-teacher">
+    <p class="label">Ask your teacher</p>
+    <p>
+      Questions worth exploring before or after Lesson 3:
+    </p>
+    <ul>
+      <li>What exactly are LSTMs and how did their "gates" help with vanishing gradients?</li>
+      <li>If RNNs were so limited, why were they dominant for so long (2014–2017)?</li>
+      <li>What does it mean to "train" a seq2seq model — what's the training data?</li>
+      <li>What was the Bahdanau attention paper (2015) and how did it partially fix the bottleneck?</li>
+    </ul>
+  </div>
+
+
+  <!-- ============================================================
+       Lesson nav
+       ============================================================ -->
+
+  <nav class="lesson-nav">
+    <a href="0001-ngrams-to-neural-language-models.html">← Lesson 1: N-grams to Neural LMs</a>
+    <span class="current">Lesson 2 — The RNN Bottleneck</span>
+    <a href="0003-attention-the-core-idea.html">Lesson 3: Attention →</a>
+  </nav>
+
+</article>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

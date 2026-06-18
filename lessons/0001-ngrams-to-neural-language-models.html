@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lesson 1 — From N-grams to Neural Language Models</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<article class="lesson">
+
+  <header class="lesson-header">
+    <p class="lesson-meta">Lesson 1 of 8 &nbsp;·&nbsp; Attention Is All You Need</p>
+    <h1>From N-grams to Neural Language Models</h1>
+    <p class="subtitle">How language modeling started, why it worked, and where it broke down</p>
+  </header>
+
+
+  <!-- ============================================================
+       1. The core problem
+       ============================================================ -->
+
+  <h2>The problem: predict the next token</h2>
+
+  <p>
+    Every language model — from the simplest statistical model of the 1980s
+    to GPT-4 — is solving the same problem:
+  </p>
+
+  <div class="callout">
+    <p><strong>Given a sequence of tokens so far, what token is most likely to come next?</strong></p>
+  </div>
+
+  <p>
+    A <strong>token</strong> is just a unit of text. It might be a character,
+    a word, or a subword chunk like <code>transform</code> + <code>er</code>.
+    The details don't matter for this lesson — what matters is that the model
+    reads left to right and at each step emits a probability distribution
+    over all possible next tokens.
+  </p>
+
+  <p>
+    "Language model" is the formal name for a system that assigns
+    probabilities to sequences of text. A good language model gives high
+    probability to grammatical, sensible text and low probability to gibberish.
+  </p>
+
+
+  <!-- ============================================================
+       2. N-grams: counting your way to language
+       ============================================================ -->
+
+  <h2>N-grams: counting your way to language</h2>
+
+  <p>
+    The earliest approach was almost embarrassingly simple: <strong>count
+    how often each sequence of words appears in a large corpus, then use
+    those counts as your probability estimates.</strong>
+  </p>
+
+  <p>
+    A <strong>unigram</strong> model ignores all context. It just tracks
+    how often each word appears overall:
+  </p>
+
+  <div class="diagram">P("the")   = 62,000 / 1,000,000 = 6.2%
+P("cat")   =  1,200 / 1,000,000 = 0.12%
+P("zzxjy") =      0 / 1,000,000 = 0%</div>
+
+  <p>
+    A <strong>bigram</strong> model uses the previous word as context:
+    given the word "the", how likely is each word to follow?
+  </p>
+
+  <div class="diagram">P("cat"  | "the") = count("the cat")  / count("the") = 0.8%
+P("dog"  | "the") = count("the dog")  / count("the") = 0.6%
+P("bank" | "the") = count("the bank") / count("the") = 0.4%</div>
+
+  <p>
+    A <strong>trigram</strong> model uses the previous <em>two</em> words.
+    An <strong>n-gram</strong> model uses the previous <em>n−1</em> words.
+    More context → better predictions.
+  </p>
+
+  <p>
+    This is a lookup table, not learning. No neural network. No training.
+    You just count occurrences in your corpus and normalize.
+  </p>
+
+
+  <!-- ============================================================
+       3. Why n-grams worked
+       ============================================================ -->
+
+  <h2>Why n-grams worked (surprisingly well)</h2>
+
+  <p>
+    For decades, n-gram models were the state of the art in speech
+    recognition and machine translation. They were fast, interpretable,
+    and easy to build. Google's early search autocomplete ran on n-gram
+    statistics over billions of web pages.
+  </p>
+
+  <p>
+    The intuition holds: most language <em>is</em> locally predictable.
+    "New York" almost always follows "New" in that order. "I am going to"
+    is usually followed by a verb. You can get a lot of mileage just from
+    local co-occurrence statistics.
+  </p>
+
+
+  <!-- ============================================================
+       4. Where n-grams break down
+       ============================================================ -->
+
+  <h2>Where n-grams break down: the sparsity wall</h2>
+
+  <p>
+    The fundamental problem with n-grams is combinatorial explosion.
+  </p>
+
+  <p>
+    English has roughly 170,000 words. A bigram table has
+    170,000 × 170,000 = <strong>29 billion</strong> possible entries.
+    A trigram table: 4.9 <em>trillion</em>. Most of those entries will
+    never appear in any corpus — no matter how large.
+  </p>
+
+  <p>
+    This is the <strong>sparsity problem</strong>: the model has seen
+    "the cat sat" but never "the cat perched" — so it assigns zero
+    probability to that perfectly valid phrase. Real corpora can never
+    cover the full space of possible n-grams.
+  </p>
+
+  <p>
+    Researchers invented workarounds — <em>smoothing</em>, <em>back-off</em>,
+    <em>interpolation</em> — to redistribute some probability mass to
+    unseen n-grams. These helped, but they were patches over a deeper flaw.
+  </p>
+
+  <p>
+    The deeper flaw: <strong>n-gram models have no concept of meaning.</strong>
+    They know that "dog" follows "the" at a certain rate, but they don't
+    know that "dog" and "cat" are both animals, or that "perched" and "sat"
+    both describe a resting posture. Each word is just an opaque symbol.
+  </p>
+
+  <div class="callout">
+    <p>
+      An n-gram model treats "dog" and "hot dog" and "dog-eared" as
+      completely unrelated tokens. It has no way to generalize across
+      words that mean similar things.
+    </p>
+  </div>
+
+
+  <!-- ============================================================
+       5. The neural language model
+       ============================================================ -->
+
+  <h2>The neural turn: word embeddings and learned representations</h2>
+
+  <p>
+    In 2003, Yoshua Bengio and colleagues published
+    <a href="https://www.jmlr.org/papers/volume3/bengio03a/bengio03a.pdf"
+       target="_blank">"A Neural Probabilistic Language Model"</a>
+    — one of the papers that launched modern deep learning for NLP.
+  </p>
+
+  <p>
+    The key insight: instead of treating each word as an opaque symbol
+    (a lookup table row), represent each word as a <strong>dense vector
+    of numbers</strong> in a high-dimensional space. That vector is the
+    word's <strong>embedding</strong>.
+  </p>
+
+  <p>
+    Then, instead of looking up counts, <em>train</em> a neural network
+    to predict the next word — and in doing so, learn what those
+    embedding vectors should be.
+  </p>
+
+  <p>
+    The result: words that appear in similar contexts end up with
+    similar embedding vectors. The model learns, purely from text,
+    that "dog" and "cat" are similar. That "Paris" and "London" are
+    both cities. That "walked" and "ran" are both past-tense verbs.
+  </p>
+
+  <div class="diagram">         ← semantic space →
+
+"king"   [0.92, 0.14, 0.73, ...]
+"queen"  [0.89, 0.19, 0.71, ...]   ← close to "king"
+"dog"    [0.12, 0.88, 0.04, ...]
+"cat"    [0.11, 0.91, 0.06, ...]   ← close to "dog"
+"Paris"  [0.55, 0.22, 0.91, ...]
+"London" [0.52, 0.25, 0.89, ...]   ← close to "Paris"</div>
+
+  <p>
+    This solved the sparsity problem at a conceptual level: you no longer
+    need to have seen "the cat perched" to predict it's plausible, because
+    you've learned that "cat" ≈ "dog" and you <em>have</em> seen "the dog
+    perched". The representation generalizes.
+  </p>
+
+  <p>
+    Word2Vec (2013) and GloVe (2014) turned this into standalone tools
+    that could be used as inputs to any NLP system. The idea of representing
+    meaning as a point in a vector space became foundational.
+  </p>
+
+
+  <!-- ============================================================
+       6. But neural language models still had a context limit
+       ============================================================ -->
+
+  <h2>The remaining problem: fixed context windows</h2>
+
+  <p>
+    Early neural language models still had a hard limit on how much
+    context they could use — typically just a handful of previous words,
+    encoded as a fixed-size window. You'd concatenate the embeddings of
+    the last 5 words and feed that to the network.
+  </p>
+
+  <p>
+    This is better than counting, but it's still a lookup into a small
+    fixed window. The model can't connect "he" in sentence 12 to the
+    name it refers to in sentence 1.
+  </p>
+
+  <p>
+    To handle longer sequences — paragraphs, documents, whole
+    conversations — you needed a way to process sequences of <em>arbitrary
+    length</em> and carry information forward through them.
+  </p>
+
+  <p>
+    That's what recurrent neural networks attempted to do next.
+    That's the subject of Lesson 2.
+  </p>
+
+  <div class="callout note">
+    <p>
+      <strong>The arc so far:</strong> N-grams counted local co-occurrence
+      but couldn't generalize across meaning. Neural language models
+      introduced word embeddings that <em>encode meaning as vectors</em>
+      and generalize to unseen combinations — but still struggled with
+      long-range context. The next step was handling sequences.
+    </p>
+  </div>
+
+
+  <!-- ============================================================
+       Quiz
+       ============================================================ -->
+
+  <div class="quiz" data-quiz>
+    <div class="quiz-header">Check your understanding</div>
+
+    <div class="quiz-item" data-correct="2"
+         data-feedback-correct="Correct. A bigram model conditions on the single previous word."
+         data-feedback-incorrect="A unigram uses no context; a trigram uses the previous two words. A bigram uses exactly one word of context.">
+      <p class="quiz-question">1. A bigram model predicts the next word based on how many previous words?</p>
+      <ul class="quiz-options">
+        <li><button>Zero — it uses no prior context</button></li>
+        <li><button>One — the single previous word</button></li>
+        <li><button>Two — the previous two words</button></li>
+        <li><button>All previous words in the sentence</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="3"
+         data-feedback-correct="Right. The sparsity problem means most n-gram combinations never appear in any corpus, so the model can't assign them a probability."
+         data-feedback-incorrect="The core problem isn't speed or storage — it's that the space of possible n-grams is vastly larger than any corpus can cover.">
+      <p class="quiz-question">2. What is the fundamental problem that makes n-gram models scale poorly to longer contexts?</p>
+      <ul class="quiz-options">
+        <li><button>They are too slow to query at inference time</button></li>
+        <li><button>They require too much memory to store counts</button></li>
+        <li><button>Most n-gram combinations never appear in training data</button></li>
+        <li><button>They cannot handle multiple languages at once</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="1"
+         data-feedback-correct="Exactly. Word embeddings place words with similar meanings close together in vector space, so the model can generalize across words it hasn't seen together."
+         data-feedback-incorrect="Word embeddings didn't fix speed or grammar rules — the breakthrough was representing meaning as a continuous vector so similar words cluster together.">
+      <p class="quiz-question">3. What did word embeddings solve that n-gram count tables could not?</p>
+      <ul class="quiz-options">
+        <li><button>Generalizing across words with similar meanings</button></li>
+        <li><button>Making predictions faster at inference time</button></li>
+        <li><button>Learning explicit grammar rules from data</button></li>
+        <li><button>Handling out-of-vocabulary words by ignoring them</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-item" data-correct="4"
+         data-feedback-correct="Correct. Early neural LMs still read a fixed-size window of previous tokens. They could generalize better than n-grams, but couldn't connect information across long stretches of text."
+         data-feedback-incorrect="Word embeddings solved the generalization problem. The remaining limitation was the fixed context window — the model could only see a few tokens back.">
+      <p class="quiz-question">4. After word embeddings were introduced, what limitation remained in early neural language models?</p>
+      <ul class="quiz-options">
+        <li><button>They still couldn't generalize across similar words</button></li>
+        <li><button>They were unable to process text longer than one word</button></li>
+        <li><button>They required hand-crafted grammar rules to function</button></li>
+        <li><button>They still used a fixed-size context window of a few words</button></li>
+      </ul>
+      <p class="quiz-feedback"></p>
+    </div>
+
+    <div class="quiz-progress">
+      <span class="quiz-score-label">0 / 0 correct</span>
+      <div class="quiz-score-bar"><div class="quiz-score-fill"></div></div>
+      <span class="quiz-pct">–</span>
+    </div>
+  </div>
+
+
+  <!-- ============================================================
+       Primary source
+       ============================================================ -->
+
+  <div class="citation">
+    <p class="label">Primary source for this lesson</p>
+    <p>
+      <a href="https://www.jmlr.org/papers/volume3/bengio03a/bengio03a.pdf" target="_blank">
+        "A Neural Probabilistic Language Model" — Bengio et al., 2003
+      </a><br>
+      The paper that introduced neural language models and word embeddings.
+      Section 1 (Introduction) is very readable and directly relevant.
+      You don't need to follow the math — the motivation paragraphs are the payoff.
+    </p>
+  </div>
+
+
+  <!-- ============================================================
+       Ask your teacher
+       ============================================================ -->
+
+  <div class="ask-teacher">
+    <p class="label">Ask your teacher</p>
+    <p>
+      Anything unclear? Come back to OpenCode and ask. Good questions to explore:
+    </p>
+    <ul>
+      <li>What exactly is a "token" and how is text tokenized in modern LLMs?</li>
+      <li>How do you actually train a neural network on text? What does "training" mean?</li>
+      <li>What's the difference between Word2Vec, GloVe, and the embeddings inside transformers?</li>
+      <li>Why did n-gram smoothing (like Kneser-Ney) fail to fully solve sparsity?</li>
+    </ul>
+  </div>
+
+
+  <!-- ============================================================
+       Lesson nav
+       ============================================================ -->
+
+  <nav class="lesson-nav">
+    <span></span>
+    <span class="current">Lesson 1 — N-grams to Neural LMs</span>
+    <a href="0002-the-rnn-bottleneck.html">Lesson 2: The RNN Bottleneck →</a>
+  </nav>
+
+</article>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

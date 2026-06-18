@@ -1,0 +1,336 @@
+/* ============================================================
+   Attention Is All You Need — Shared Lesson Stylesheet
+   Tufte-inspired: generous whitespace, readable typography,
+   restrained color. Works well printed and on screen.
+   ============================================================ */
+
+:root {
+  --bg:          #fffef9;
+  --surface:     #ffffff;
+  --border:      #e8e4da;
+  --text:        #1a1a1a;
+  --muted:       #6b6b6b;
+  --accent:      #c45000;
+  --accent-soft: #fff0e6;
+  --code-bg:     #f4f2ed;
+  --success:     #1a7a4a;
+  --success-bg:  #edfaf3;
+  --error:       #c0392b;
+  --error-bg:    #fdf0ee;
+  --font-sans:   "Georgia", "Times New Roman", serif;
+  --font-mono:   "SF Mono", "Fira Code", "Consolas", monospace;
+  --max-width:   680px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 18px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  padding: 3rem 1.5rem 6rem;
+}
+
+/* ---- Layout ---- */
+
+.lesson {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+/* ---- Header ---- */
+
+.lesson-header {
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.lesson-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.lesson-header h1 {
+  font-size: 2rem;
+  font-weight: normal;
+  line-height: 1.25;
+  margin-bottom: 0.75rem;
+}
+
+.lesson-header .subtitle {
+  font-size: 1rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ---- Typography ---- */
+
+h2 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--text);
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 1.75rem 0 0.5rem;
+  color: var(--text);
+}
+
+p { margin-bottom: 1.2rem; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+}
+a:hover { opacity: 0.75; }
+
+strong { font-weight: bold; }
+em { font-style: italic; }
+
+/* ---- Lists ---- */
+
+ul, ol {
+  margin: 0 0 1.2rem 1.5rem;
+}
+li { margin-bottom: 0.3rem; }
+
+/* ---- Code ---- */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+/* ---- Callout boxes ---- */
+
+.callout {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.callout p:last-child { margin-bottom: 0; }
+
+.callout.note {
+  background: #f0f4ff;
+  border-left-color: #3b6ed4;
+}
+
+/* ---- Diagrams / ASCII art ---- */
+
+.diagram {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem 1.5rem;
+  overflow-x: auto;
+  line-height: 1.6;
+  margin: 1.5rem 0;
+  white-space: pre;
+  color: var(--text);
+}
+
+/* ---- Citation ---- */
+
+.citation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 2rem 0;
+  font-size: 0.9rem;
+}
+
+.citation .label {
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+/* ---- Lesson nav ---- */
+
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.lesson-nav a { border-bottom: none; }
+.lesson-nav .current { color: var(--muted); font-style: italic; }
+
+/* ---- Quiz (see quiz.js for behaviour) ---- */
+
+.quiz {
+  margin: 2.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quiz-header {
+  background: var(--code-bg);
+  padding: 0.85rem 1.25rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.quiz-question {
+  padding: 1.25rem 1.25rem 0;
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: 1.5;
+}
+
+.quiz-options {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 1.25rem 1.25rem;
+}
+
+.quiz-options li {
+  margin-bottom: 0.5rem;
+}
+
+.quiz-options button {
+  width: 100%;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.65rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
+
+.quiz-options button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.quiz-options button.correct {
+  background: var(--success-bg);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.quiz-options button.incorrect {
+  background: var(--error-bg);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.quiz-options button:disabled { cursor: default; }
+
+.quiz-feedback {
+  padding: 0 1.25rem 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: none;
+}
+
+.quiz-feedback.visible { display: block; }
+.quiz-feedback.correct { color: var(--success); }
+.quiz-feedback.incorrect { color: var(--error); }
+
+.quiz-progress {
+  padding: 0.75rem 1.25rem;
+  background: var(--code-bg);
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.quiz-score-bar {
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  flex: 1;
+  margin: 0 1rem;
+}
+
+.quiz-score-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+/* ---- Ask your teacher prompt ---- */
+
+.ask-teacher {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+}
+
+.ask-teacher .label {
+  font-weight: bold;
+  margin-bottom: 0.35rem;
+  color: var(--accent);
+}
+
+/* ---- Print ---- */
+
+@media print {
+  body { background: white; padding: 0; font-size: 11pt; }
+  .quiz, .ask-teacher { display: none; }
+  .lesson-nav { display: none; }
+  a { color: inherit; border-bottom: none; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.75em; color: #666; }
+}
