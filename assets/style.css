@@ -325,6 +325,32 @@ pre code {
   color: var(--accent);
 }
 
+/* ---- Audio Overview ---- */
+
+.audio-overview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 2.5rem 0;
+}
+
+.audio-overview-label {
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+}
+
+.audio-overview-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 0;
+}
+
 /* ---- Print ---- */
 
 @media print {

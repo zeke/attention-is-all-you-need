@@ -13,6 +13,31 @@ An iterative, lesson-by-lesson course on transformers and attention, taught by a
 - Shared assets: `assets/style.css` and `assets/quiz.js` — linked by every lesson
 - Reference: `reference/*.html` — glossary and cheat sheets, designed for quick review
 - Progress tracking: `learning-records/*.md` — ADR-style records of what was understood
+- Audio: `audio/*.mp3` — NotebookLM deep-dive overviews, one per lesson; committed to git
+
+## Audio overviews
+
+Each lesson has a companion NotebookLM audio overview (a ~10-minute podcast-style deep-dive).
+
+To generate audio for a new lesson after writing it:
+
+```bash
+# Authenticate once (opens a browser for Google sign-in)
+notebooklm login
+
+# Generate audio for a specific lesson
+script/generate-audio 0003
+
+# Or regenerate all
+script/generate-audio
+
+# Embed the audio player into the lesson HTML
+script/embed-audio 0003
+```
+
+Requires `notebooklm-py` installed: `uv tool install "notebooklm-py[browser]"`
+
+Audio files are committed to the repo (MP3, ~5-30MB each) so they are available immediately on any machine after cloning. They are regeneratable at any time by running the scripts above.
 
 ## How to resume learning on a new machine
 

@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# script/generate-audio
+#
+# Generate a NotebookLM audio overview for one or all lessons.
+#
+# Usage:
+#   script/generate-audio                    # generate for all lessons
+#   script/generate-audio 0001               # generate for lesson 0001 only
+#   script/generate-audio 0001 0002          # generate for specific lessons
+#
+# Output: audio/NNNN-<slug>.mp3
+# Requires: notebooklm CLI authenticated (`notebooklm login` first)
+#
+# Each lesson gets its own NotebookLM notebook. Notebooks are named:
+#   "attention-is-all-you-need: Lesson NNNN"
+#
+# The lesson HTML file is uploaded as the source. The audio overview is
+# generated in "deep-dive" format and downloaded as MP3.
+#
+# Once audio is generated, run `script/embed-audio` to update the HTML
+# files to include the audio player.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LESSONS_DIR="$REPO_ROOT/lessons"
+AUDIO_DIR="$REPO_ROOT/audio"
+
+# Colours
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+log()  { echo -e "${GREEN}▶${NC} $*"; }
+warn() { echo -e "${YELLOW}⚠${NC}  $*"; }
+err()  { echo -e "${RED}✗${NC}  $*" >&2; }
+
+# Check auth first
+if ! notebooklm auth check --json 2>/dev/null | grep -q '"status": "ok"'; then
+  err "Not authenticated. Run: notebooklm login"
+  exit 1
+fi
+
+mkdir -p "$AUDIO_DIR"
+
+# Determine which lessons to process
+if [[ $# -gt 0 ]]; then
+  # Specific lesson numbers passed as arguments
+  LESSON_FILES=()
+  for num in "$@"; do
+    matches=("$LESSONS_DIR"/${num}*.html)
+    if [[ ${#matches[@]} -eq 0 || ! -f "${matches[0]}" ]]; then
+      err "No lesson file found matching: $num"
+      exit 1
+    fi
+    LESSON_FILES+=("${matches[0]}")
+  done
+else
+  # All lessons
+  mapfile -t LESSON_FILES < <(ls "$LESSONS_DIR"/*.html 2>/dev/null | sort)
+fi
+
+if [[ ${#LESSON_FILES[@]} -eq 0 ]]; then
+  err "No lesson HTML files found in $LESSONS_DIR"
+  exit 1
+fi
+
+for lesson_path in "${LESSON_FILES[@]}"; do
+  lesson_file="$(basename "$lesson_path")"
+  # e.g. 0001-ngrams-to-neural-language-models.html
+  lesson_num="${lesson_file:0:4}"
+  lesson_slug="${lesson_file%.html}"
+  audio_out="$AUDIO_DIR/${lesson_slug}.mp3"
+  notebook_name="attention-is-all-you-need: Lesson ${lesson_num}"
+
+  # Skip if audio already exists
+  if [[ -f "$audio_out" ]]; then
+    warn "Audio already exists, skipping: $audio_out"
+    continue
+  fi
+
+  log "Processing: $lesson_file"
+
+  # Create a dedicated notebook for this lesson
+  log "  Creating notebook: $notebook_name"
+  notebook_json=$(notebooklm create "$notebook_name" --json)
+  notebook_id=$(echo "$notebook_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+  log "  Notebook ID: $notebook_id"
+
+  # Add the lesson HTML as source
+  log "  Adding lesson HTML as source..."
+  notebooklm source add "$lesson_path" \
+    --notebook "$notebook_id" \
+    --title "$lesson_slug" \
+    --type file \
+    --json > /dev/null
+
+  # Give NotebookLM a moment to index the source
+  sleep 3
+
+  # Generate audio overview (deep-dive, default length, wait for completion)
+  log "  Generating audio overview (this takes 1-3 minutes)..."
+  notebooklm generate audio \
+    "This lesson is part of a personal course on transformers and attention mechanisms. Create an engaging deep-dive audio overview that reinforces the key concepts, using clear analogies suitable for a software engineer with no formal ML background." \
+    --notebook "$notebook_id" \
+    --format deep-dive \
+    --length default \
+    --wait \
+    --timeout 300 \
+    --json > /dev/null
+
+  # Download the MP3
+  log "  Downloading audio to: $audio_out"
+  notebooklm download audio "$audio_out" \
+    --notebook "$notebook_id" \
+    --latest \
+    --force
+
+  log "  Done: $audio_out"
+  echo ""
+done
+
+log "All done. Audio files in: $AUDIO_DIR"
+echo ""
+echo "Next: run script/embed-audio to add players to lesson HTML files."

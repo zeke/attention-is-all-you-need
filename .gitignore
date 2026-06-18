@@ -1,3 +1,7 @@
 .DS_Store
 *.swp
 *.swo
+
+# Audio files are committed intentionally (see script/generate-audio)
+# Remove this comment if you want to exclude them
+
