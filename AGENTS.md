@@ -22,8 +22,12 @@ Each lesson has a companion NotebookLM audio overview (a ~10-minute podcast-styl
 To generate audio for a new lesson after writing it:
 
 ```bash
-# Authenticate once (opens a browser for Google sign-in)
-notebooklm login
+# Authenticate by importing cookies from your existing Chrome session
+# (no new sign-in window — just needs you to already be logged into Google in Chrome)
+notebooklm login --browser-cookies chrome
+
+# If that doesn't work, fall back to opening a Chromium window:
+# notebooklm login
 
 # Generate audio for a specific lesson
 script/generate-audio 0003
@@ -35,7 +39,14 @@ script/generate-audio
 script/embed-audio 0003
 ```
 
-Requires `notebooklm-py` installed: `uv tool install "notebooklm-py[browser]"`
+Requires `notebooklm-py` installed:
+
+```bash
+uv tool install "notebooklm-py[browser]"
+# Then install the correct Chromium version for notebooklm-py's bundled Playwright:
+uv tool run --from "notebooklm-py[browser]" playwright install chromium
+# (Do NOT run plain `playwright install` — it installs a different version)
+```
 
 Audio files are committed to the repo (MP3, ~5-30MB each) so they are available immediately on any machine after cloning. They are regeneratable at any time by running the scripts above.
 

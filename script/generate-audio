@@ -55,7 +55,8 @@ if [[ $# -gt 0 ]]; then
   done
 else
   # All lessons
-  mapfile -t LESSON_FILES < <(ls "$LESSONS_DIR"/*.html 2>/dev/null | sort)
+  LESSON_FILES=()
+  while IFS= read -r f; do LESSON_FILES+=("$f"); done < <(ls "$LESSONS_DIR"/*.html 2>/dev/null | sort)
 fi
 
 if [[ ${#LESSON_FILES[@]} -eq 0 ]]; then
@@ -79,19 +80,65 @@ for lesson_path in "${LESSON_FILES[@]}"; do
 
   log "Processing: $lesson_file"
 
-  # Create a dedicated notebook for this lesson
-  log "  Creating notebook: $notebook_name"
-  notebook_json=$(notebooklm create "$notebook_name" --json)
-  notebook_id=$(echo "$notebook_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")
+  # Reuse existing notebook for this lesson if it already exists, else create
+  existing_id=$(notebooklm list --json 2>/dev/null \
+    | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for nb in data.get('notebooks', []):
+    if nb.get('title') == sys.argv[1]:
+        print(nb['id'])
+        break
+" "$notebook_name" 2>/dev/null || true)
+
+  if [[ -n "$existing_id" ]]; then
+    notebook_id="$existing_id"
+    log "  Reusing existing notebook: $notebook_name ($notebook_id)"
+  else
+    log "  Creating notebook: $notebook_name"
+    notebook_json=$(notebooklm create "$notebook_name" --json)
+    notebook_id=$(echo "$notebook_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['notebook']['id'])")
+    log "  Notebook ID: $notebook_id"
+  fi
   log "  Notebook ID: $notebook_id"
 
-  # Add the lesson HTML as source
-  log "  Adding lesson HTML as source..."
-  notebooklm source add "$lesson_path" \
+  # Convert HTML to plain text for upload (NotebookLM rejects .html files)
+  tmp_txt=$(mktemp /tmp/notebooklm-lesson-XXXXXX).txt
+  python3 - "$lesson_path" "$tmp_txt" <<'PYEOF'
+import sys, re
+
+with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    html = f.read()
+
+# Strip <style>, <script> blocks entirely
+html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
+html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+
+# Replace block-level tags with newlines
+for tag in ['</p>', '</li>', '</h1>', '</h2>', '</h3>', '</div>', '<br>', '<br/>']:
+    html = html.replace(tag, '\n')
+
+# Strip all remaining tags
+text = re.sub(r'<[^>]+>', '', html)
+
+# Normalise whitespace
+text = re.sub(r'\n{3,}', '\n\n', text)
+text = re.sub(r'[ \t]+', ' ', text)
+text = '\n'.join(line.strip() for line in text.splitlines())
+
+with open(sys.argv[2], 'w', encoding='utf-8') as f:
+    f.write(text.strip())
+PYEOF
+
+  # Add the plain-text version as source
+  log "  Adding lesson content as source (plain text)..."
+  notebooklm source add "$tmp_txt" \
     --notebook "$notebook_id" \
     --title "$lesson_slug" \
     --type file \
+    --follow-symlinks \
     --json > /dev/null
+  rm -f "$tmp_txt"
 
   # Give NotebookLM a moment to index the source
   sleep 3

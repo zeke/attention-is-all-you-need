@@ -35,7 +35,8 @@ if [[ $# -gt 0 ]]; then
     LESSON_FILES+=("${matches[0]}")
   done
 else
-  mapfile -t LESSON_FILES < <(ls "$LESSONS_DIR"/*.html 2>/dev/null | sort)
+  LESSON_FILES=()
+  while IFS= read -r f; do LESSON_FILES+=("$f"); done < <(ls "$LESSONS_DIR"/*.html 2>/dev/null | sort)
 fi
 
 EMBEDDED=0
