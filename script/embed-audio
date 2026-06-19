@@ -75,7 +75,7 @@ for lesson_path in "${LESSON_FILES[@]}"; do
     </audio>
   </div>'
 
-  # Insert before </article>
+  # Insert after </header> (i.e. at the top of the lesson, below the title)
   # Use Python for reliable in-place string insertion (sed -i differs on macOS/Linux)
   python3 - "$lesson_path" "$player_html" <<'PYEOF'
 import sys
@@ -86,13 +86,13 @@ player_html = sys.argv[2]
 with open(lesson_path, 'r', encoding='utf-8') as f:
     content = f.read()
 
-marker = '</article>'
+marker = '</header>'
 if marker not in content:
-    print(f"ERROR: no </article> tag found in {lesson_path}", file=sys.stderr)
+    print(f"ERROR: no </header> tag found in {lesson_path}", file=sys.stderr)
     sys.exit(1)
 
-# Insert just before the closing </article>
-updated = content.replace(marker, player_html + '\n\n' + marker, 1)
+# Insert just after the closing </header>
+updated = content.replace(marker, marker + '\n' + player_html, 1)
 
 with open(lesson_path, 'w', encoding='utf-8') as f:
     f.write(updated)
